@@ -15,12 +15,24 @@ const Feedback = async ({ params }: RouteParams) => {
   const user = await getCurrentUser();
 
   const interview = await getInterviewById(id);
-  if (!interview) redirect("/");
-
-  const feedback = await getFeedbackByInterviewId({
+  const feedback = interview ? await getFeedbackByInterviewId({
     interviewId: id,
     userId: user?.id!,
-  });
+  }) : null;
+
+  if (!interview || !feedback) {
+    return (
+      <section className="section-feedback flex flex-col items-center justify-center min-h-[60vh]">
+        <h1 className="text-3xl font-semibold mb-4 text-red-400">Feedback Not Found</h1>
+        <p className="mb-6 text-lg text-center text-light-100 max-w-xl">
+          Sorry, we couldn't find feedback for this interview. It may not have been generated yet, or there was an error. Please try again later or contact support if the problem persists.
+        </p>
+        <Button className="btn-primary">
+          <Link href="/">Return to Dashboard</Link>
+        </Button>
+      </section>
+    );
+  }
 
   return (
     <section className="section-feedback">
@@ -59,7 +71,33 @@ const Feedback = async ({ params }: RouteParams) => {
 
       <hr />
 
-      <p>{feedback?.finalAssessment}</p>
+      {/* Structured Feedback Sections */}
+      <div className="w-full max-w-2xl mx-auto overflow-y-auto max-h-[60vh] animate-fade-in bg-zinc-900 rounded-xl p-6 mt-6 mb-8 border border-zinc-700 shadow-sm">
+        {(() => {
+          const text = (feedback?.finalAssessment || '').replace(/---+/g, '').trim();
+          const sectionRegex = /(Communication Skills:|Technical Knowledge:|Problem-Solving Ability:|Cultural & Role Fit:|Confidence & Clarity:|Final Assessment:)([\s\S]*?)(?=Communication Skills:|Technical Knowledge:|Problem-Solving Ability:|Cultural & Role Fit:|Confidence & Clarity:|Final Assessment:|$)/g;
+          const sections = [];
+          let match;
+          while ((match = sectionRegex.exec(text)) !== null) {
+            const header = match[1].replace(":", "").trim();
+            const content = match[2].trim();
+            sections.push({ header, content });
+          }
+          return sections.map((section, idx) => (
+            <section key={idx} className="mb-6">
+              <h3 className="block font-bold text-primary-200 mb-1 text-lg">
+                {section.header}
+              </h3>
+              <p className="text-light-100 whitespace-pre-line leading-relaxed">
+                {section.content}
+              </p>
+              {idx < sections.length - 1 && (
+                <hr className="my-6 border-zinc-700" />
+              )}
+            </section>
+          ));
+        })()}
+      </div>
 
       {/* Interview Breakdown */}
       <div className="flex flex-col gap-4">

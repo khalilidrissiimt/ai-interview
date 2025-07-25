@@ -38,7 +38,7 @@ const InterviewCard = async ({
   ).format("MMM D, YYYY");
 
   return (
-    <div className="card-border w-[360px] max-sm:w-full min-h-96">
+    <div className="card-border w-[360px] max-sm:w-full min-h-96" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"' }}>
       <div className="card-interview">
         <div>
           {/* Type Badge */}
@@ -77,15 +77,34 @@ const InterviewCard = async ({
 
             <div className="flex flex-row gap-2 items-center">
               <Image src="/star.svg" width={22} height={22} alt="star" />
-              <p>{feedback?.totalScore || "---"}/100</p>
+              <p>{feedback ? "Completed" : "Not taken"}</p>
             </div>
           </div>
 
           {/* Feedback or Placeholder Text */}
-          <p className="line-clamp-2 mt-5">
-            {feedback?.finalAssessment ||
-              "You haven't taken this interview yet. Take it now to improve your skills."}
-          </p>
+          <div className="mt-5 space-y-4">
+            {typeof (feedback as any)?.feedback === "string" ? (() => {
+              const sectionRegex = /(Communication Skills:|Technical Knowledge:|Problem[- ]Solving Ability:|Cultural & Role Fit:|Confidence & Clarity:|Final Assessment:)/g;
+              const parts = (feedback as any).feedback.split(sectionRegex).map((p: string) => p.trim()).filter(Boolean);
+
+              const blocks = [];
+              for (let i = 0; i < parts.length - 1; i += 2) {
+                const title = parts[i];
+                const content = parts[i + 1];
+                blocks.push(
+                  <div key={i} className="mb-3">
+                    <h4 className="text-sm font-semibold text-primary-200 mb-1">{title}</h4>
+                    <p className="text-sm text-light-100 whitespace-pre-line">{content}</p>
+                  </div>
+                );
+              }
+              return blocks.length > 0 ? blocks : <p className="text-light-100">{(feedback as any).feedback}</p>;
+            })() : (
+              <p className="text-light-100">No feedback available.</p>
+            )}
+          </div>
+
+
         </div>
 
         <div className="flex flex-row justify-between">
