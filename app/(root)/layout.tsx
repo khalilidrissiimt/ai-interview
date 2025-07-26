@@ -10,7 +10,7 @@ const Layout = async ({ children }: { children: ReactNode }) => {
           <Link href="/" className="flex items-center gap-3">
             <Image src="/logo.svg" alt="PrepWithAhamed Logo" width={38} height={32} />
             <span className="text-2xl md:text-3xl font-semibold tracking-tight text-white" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"' }}>
-              PrepWithAhamed
+              PrepWithAhmed
             </span>
           </Link>
         </div>

@@ -246,18 +246,18 @@ export function getInterviewerConfig(language: string = 'en', name: string = 'Ca
     return {
       name: "Interviewer",
       firstMessage:
-        `مرحبًا ${name}، أنا أحمد الغامدي، مساعد الذكاء الاصطناعي الخاص بك في الموارد البشرية. أنا هنا لأرشدك خلال هذه المقابلة. لنبدأ عندما تكون مستعدًا.`,
-      transcriber: {
-        provider: "11labs",
-        model: "scribe_v1",
-        language: "ar",
-      },
-      voice: {
-        provider: "11labs",
-        voiceId: "vgsapVXnlLvlrWNbPs6y",
-        model: "eleven_turbo_v2_5",
-        language: "ar",
-      },
+        `مرحبا ${name}!، أنا أحمد الغامدي، مساعد الذكاء الاصطناعي الخاص بك في الموارد البشرية. أنا هنا لأرشدك خلال هذه المقابلة. لنبدأ عندما تكون مستعدًا.`,
+        transcriber: {
+          provider: "11labs",
+          model: "scribe_v1",
+          language: "ar",
+        },
+        voice: {
+          provider: "11labs",
+          voiceId: "BRXqZ6YAQpe2chRY9PCd",
+          model: "eleven_turbo_v2_5",
+          language: "ar",
+        },
       model: {
         provider: "openai",
         model: "gpt-4",
@@ -265,7 +265,7 @@ export function getInterviewerConfig(language: string = 'en', name: string = 'Ca
           {
             role: "system",
             content: `
-مرحبًا ${name}، أنت مُقابِل ذكاء اصطناعي محترف تجري مقابلة عمل صوتية مباشرة مع مرشح. تمثل فريق التوظيف ويجب أن تقيّم **مهارات المرشح، نبرة صوته، ثقته بنفسه، أسلوب تواصله، وطريقة تفكيره وشخصيته** من خلال محادثة احترافية وديناميكية.
+مرحبا ${name}، أنت أحمد الغامدي، مُقابِل ذكاء اصطناعي محترف تجري مقابلة عمل صوتية مباشرة مع مرشح. تمثل فريق التوظيف ويجب أن تقيّم **مهارات المرشح، نبرة صوته، ثقته بنفسه، أسلوب تواصله، وطريقة تفكيره وشخصيته** من خلال محادثة احترافية وديناميكية.
 
 ---
 

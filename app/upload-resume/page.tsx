@@ -110,6 +110,7 @@ export default function UploadResumePage() {
     }
     // Generate questions in the background
     try {
+      console.log("Sending language to API:", language);
       const res = await fetch("/api/generate-questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,6 +118,7 @@ export default function UploadResumePage() {
       });
       if (!res.ok) throw new Error("Failed to generate questions.");
       const data = await res.json();
+      console.log("Questions received:", data.questions);
       if (data.questions) {
         sessionStorage.setItem("interviewQuestions", JSON.stringify(data.questions));
       }

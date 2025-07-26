@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     // Set prompt language
     let prompt = "";
     if (language === "ar") {
-      prompt = `قم بإعداد أسئلة لمقابلة عمل بناءً على السيرة الذاتية التالية. يجب أن تكون الأسئلة ذات صلة بخبرة ومهارات وخلفية المرشح. يرجى إرجاع الأسئلة فقط، بدون أي نص إضافي. صِغها كمصفوفة JSON من السلاسل النصية.\nالسيرة الذاتية:\n${resume}`;
+      prompt = `قم بإعداد أسئلة لمقابلة عمل باللغة العربية بناءً على السيرة الذاتية التالية. يجب أن تكون الأسئلة باللغة العربية فقط وذات صلة بخبرة ومهارات وخلفية المرشح. يرجى إرجاع الأسئلة باللغة العربية فقط، بدون أي نص إضافي. صِغها كمصفوفة JSON من السلاسل النصية العربية.\n\nمهم: جميع الأسئلة يجب أن تكون باللغة العربية فقط.\n\nالسيرة الذاتية:\n${resume}`;
     } else {
       prompt = `Prepare questions for a job interview based on the following resume. The questions should be relevant to the candidate's experience, skills, and background. Please return only the questions, without any additional text. Format as a JSON array of strings.\nResume:\n${resume}`;
     }
