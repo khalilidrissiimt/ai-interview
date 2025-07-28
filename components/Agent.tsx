@@ -12,6 +12,7 @@ import { createFeedback } from "@/lib/actions/general.action";
 import { map } from "zod";
 import dayjs from "dayjs";
 import { CreateAssistantDTO } from "@vapi-ai/web/dist/api";
+import { useLanguage } from "@/lib/hooks/useLanguage";
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
@@ -39,6 +40,9 @@ type AgentProps = {
   interviewerConfig?: CreateAssistantDTO;
 };
 
+// 45 minutes in milliseconds
+const TIME_LIMIT = 45 * 60 * 1000;
+
 const Agent = ({
   userName,
   userId,
@@ -50,6 +54,8 @@ const Agent = ({
   interviewerConfig,
 }: AgentProps & { language?: string; interviewerConfig: CreateAssistantDTO }) => {
   const router = useRouter();
+  const { t } = useLanguage();
+  
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
   const [messages, setMessages] = useState<SavedMessage[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -65,17 +71,40 @@ const Agent = ({
   const [interviewStartTime, setInterviewStartTime] = useState<number | null>(null);
   const [loadingReturnDashboard, setLoadingReturnDashboard] = useState(false);
   const [loadingCall, setLoadingCall] = useState(false);
+  const timeLimitRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const onCallStart = () => {
+      console.log("📞 Call started - Setting up 1-minute timer...");
       setCallStatus(CallStatus.ACTIVE);
+      setInterviewStartTime(Date.now());
+      
+      // Start the timer when the call begins
+      timeLimitRef.current = setTimeout(() => {
+        console.log("⏰ Timer fired - 1 minute reached!");
+        
+        // Use appropriate language message
+        const endMessage = language === 'ar' 
+          ? "يبدو أننا انتهينا من الوقت الآن. شكرًا جزيلًا على هذه المحادثة — لقد كانت ممتعة، وأتمنى لك كل التوفيق في المستقبل."
+          : "It looks like we're out of time for now. Thank you so much for the conversation — I really appreciated it, and I wish you the best going forward.";
+        
+        vapi.say(endMessage, true);
+      }, TIME_LIMIT);
     };
 
     const onCallEnd = () => {
+      console.log("Call ended unexpectedly", { callStatus, messages: messages.length });
       setCallStatus(CallStatus.FINISHED);
+      
+      // Clear the timer if call ends before time limit
+      if (timeLimitRef.current) {
+        clearTimeout(timeLimitRef.current);
+        timeLimitRef.current = null;
+      }
     };
 
     const onMessage = (message: any) => {
+      console.log("Received message:", message);
       if (message.type === "transcript" && message.transcriptType === "final") {
         // Save words array if available
         const newMessage: SavedMessage = {
@@ -98,9 +127,16 @@ const Agent = ({
       setIsSpeaking(false);
     };
 
-    const onError = (error: Error) => {
-      console.log("Error:", error);
+    const onError = (error: any) => {
+      // Ignore expected "meeting has ended" error
+      if (error?.type === "ejected" && error?.msg === "Meeting has ended") {
+        return; // don't log this one
+      }
+    
+      console.error("VAPI Error:", error);
+      // Don't automatically end the call on error, let the user decide
     };
+    
 
     vapi.on("call-start", onCallStart);
     vapi.on("call-end", onCallEnd);
@@ -116,6 +152,11 @@ const Agent = ({
       vapi.off("speech-start", onSpeechStart);
       vapi.off("speech-end", onSpeechEnd);
       vapi.off("error", onError);
+      
+      // Clear timer on cleanup
+      if (timeLimitRef.current) {
+        clearTimeout(timeLimitRef.current);
+      }
     };
   }, []);
 
@@ -286,37 +327,47 @@ const Agent = ({
   const config = interviewerConfig;
 
   const handleCall = async () => {
+    console.log("Starting call with config:", { type, questions, config });
     setInterviewStartTime(Date.now());
     setCallStatus(CallStatus.CONNECTING);
 
-    if (type === "generate") {
-      await vapi.start(
-        undefined,
-        undefined,
-        undefined,
-        process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
-        {
+    try {
+      if (type === "generate") {
+        console.log("Starting generate call");
+        await vapi.start(
+          undefined,
+          undefined,
+          undefined,
+          process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
+          {
+            variableValues: {
+              username: userName,
+              userid: userId,
+              ...config,
+            },
+          }
+        );
+      } else {
+        console.log("Starting interview call");
+        let formattedQuestions = "";
+        if (questions) {
+          formattedQuestions = questions
+            .map((question) => `- ${question}`)
+            .join("\n");
+        }
+        console.log("Formatted questions:", formattedQuestions);
+
+        await vapi.start(config, {
           variableValues: {
-            username: userName,
-            userid: userId,
+            questions: formattedQuestions,
             ...config,
           },
-        }
-      );
-    } else {
-      let formattedQuestions = "";
-      if (questions) {
-        formattedQuestions = questions
-          .map((question) => `- ${question}`)
-          .join("\n");
+        });
       }
-
-      await vapi.start(config, {
-        variableValues: {
-          questions: formattedQuestions,
-          ...config,
-        },
-      });
+      console.log("Call started successfully");
+    } catch (error) {
+      console.error("Error starting call:", error);
+      setCallStatus(CallStatus.INACTIVE);
     }
   };
 
@@ -368,6 +419,11 @@ const Agent = ({
                 "transition-opacity duration-500 opacity-0",
                 "animate-fadeIn opacity-100"
               )}
+              style={{ 
+                fontFamily: language === 'ar' 
+                  ? '"Cairo", "Host Grotesk", "Inter", "Poppins", "Roboto Mono", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif'
+                  : 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif'
+              }}
             >
               {lastMessage}
             </p>
@@ -680,10 +736,10 @@ const Agent = ({
                     <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
                     <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
                   </svg>
-                ) : "Return to Dashboard"}
+                ) : t("interview.returnToDashboard")}
               </button>
               {interviewId && (
-                <button className="btn btn-secondary px-6 py-2 rounded-full text-base font-semibold" onClick={() => router.push(`/interview/${interviewId}`)}>Retake Interview</button>
+                <button className="btn btn-secondary px-6 py-2 rounded-full text-base font-semibold" onClick={() => router.push(`/interview/${interviewId}`)}>{t("interview.retakeInterview")}</button>
               )}
             </div>
           </div>
@@ -708,14 +764,14 @@ const Agent = ({
             ) : (
               <span className="relative">
                 {callStatus === "INACTIVE" || callStatus === "FINISHED"
-                  ? "Call"
+                  ? t("interview.callButton")
                   : ". . ."}
               </span>
             )}
           </button>
         ) : (
           <button className="btn-disconnect" onClick={() => handleDisconnect()}>
-            End
+            {t("interview.endButton")}
           </button>
         )}
       </div>

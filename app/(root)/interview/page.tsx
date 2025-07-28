@@ -3,6 +3,7 @@ import Agent from "@/components/Agent";
 import { useEffect, useState } from "react";
 import { getInterviewerConfig } from "@/constants";
 import Cookies from "js-cookie";
+import { useLanguage } from "@/lib/hooks/useLanguage";
 
 export default function InterviewPage() {
   const [questions, setQuestions] = useState<string[]>([]);
@@ -10,6 +11,7 @@ export default function InterviewPage() {
   const [showWarning, setShowWarning] = useState(false);
   const [interviewerConfig, setInterviewerConfig] = useState(getInterviewerConfig("en"));
   const [candidateName, setCandidateName] = useState("Candidate");
+  const { t } = useLanguage();
 
   useEffect(() => {
     const stored = sessionStorage.getItem("interviewQuestions");
@@ -42,8 +44,8 @@ export default function InterviewPage() {
   }, [questions, language]);
 
   return (
-    <div>
-      <h3 style={{ marginBottom: '1rem' }}>Interview</h3>
+    <div className="px-4 sm:px-0">
+      <h3 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">{t("interview.title")}</h3>
       <Agent questions={questions} type="interview" userName={candidateName} interviewerConfig={interviewerConfig} />
     </div>
   );
