@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
-import { generateEmbedding } from "@/lib/embedding";
 
 // Function to flatten feedback JSON into plain text
 function flattenFeedback(feedback: any): string {
@@ -214,55 +213,7 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    // Generate skills embedding from extracted skills
-    let skillsEmbedding = null;
-    if (extractedSkills) {
-      try {
-        console.log("📝 Skills for embedding:", extractedSkills);
-        
-        // Generate embedding from extracted skills using E5 model
-        skillsEmbedding = await generateEmbedding(extractedSkills);
-        
-        if (skillsEmbedding) {
-          console.log("✅ Skills embedding generated:", {
-            vectorLength: skillsEmbedding.length,
-            sampleValues: skillsEmbedding.slice(0, 3)
-          });
-        } else {
-          console.error("❌ Failed to generate skills embedding - continuing without embedding");
-        }
-      } catch (embeddingError) {
-        console.error("❌ Error generating skills embedding:", embeddingError);
-        console.log("⚠️ Continuing without skills embedding");
-      }
-    } else {
-      console.log("⚠️ No skills available for embedding generation");
-    }
-    
-    // Generate feedback embedding from resume text
-    let feedbackEmbedding = null;
-    if (resumeText) {
-      try {
-        console.log("📝 Resume text for embedding:", resumeText.substring(0, 200) + "...");
-        
-        // Generate embedding from full resume text using E5 model
-        feedbackEmbedding = await generateEmbedding(resumeText);
-        
-        if (feedbackEmbedding) {
-          console.log("✅ Resume text embedding generated:", {
-            vectorLength: feedbackEmbedding.length,
-            sampleValues: feedbackEmbedding.slice(0, 3)
-          });
-        } else {
-          console.error("❌ Failed to generate resume text embedding - continuing without embedding");
-        }
-      } catch (embeddingError) {
-        console.error("❌ Error generating resume text embedding:", embeddingError);
-        console.log("⚠️ Continuing without feedback embedding");
-      }
-    } else {
-      console.log("⚠️ No resume text available for embedding generation");
-    }
+
     
     // Make request to Supabase using fetch (Edge-safe approach)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -291,30 +242,15 @@ export async function POST(req: NextRequest) {
       "CV/Resume": resumeFilePath ? `${appUrl}/api/dashboard-resume-url?file=${encodeURIComponent(resumeFilePath)}` : null, // API URL that generates fresh signed URLs
     };
     
-    // Add skills as text (not vector)
+    // Add skills as text
     if (extractedSkills) {
       supabaseData.skills = extractedSkills;
       console.log("✅ Skills text added to Supabase data");
     }
     
-    // Only add embeddings if they exist and are arrays
-    if (skillsEmbedding && Array.isArray(skillsEmbedding)) {
-      supabaseData.skills_embedding = skillsEmbedding;
-      console.log("✅ Skills embedding added to Supabase data");
-    }
-    
-    if (feedbackEmbedding && Array.isArray(feedbackEmbedding)) {
-      supabaseData.feedback_embedding = feedbackEmbedding;
-      console.log("✅ Feedback embedding added to Supabase data");
-    }
-    
     console.log("📊 Final Supabase data structure:", {
       hasSkillsText: !!supabaseData.skills,
-      hasSkillsEmbedding: !!supabaseData.skills_embedding,
-      hasFeedbackEmbedding: !!supabaseData.feedback_embedding,
       skillsTextType: typeof supabaseData.skills,
-      skillsEmbeddingType: typeof supabaseData.skills_embedding,
-      feedbackEmbeddingType: typeof supabaseData.feedback_embedding,
       resumeUrl: supabaseData["CV/Resume"] || "None",
       note: "Resume stored as clickable URL for dashboard access - generates signed URL on-demand"
     });
