@@ -56,17 +56,17 @@ export default function UploadResumePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) {
-      setError("Please select a PDF file.");
+      setError("Please select a file.");
       return;
     }
     if (!email) {
       setError("Please enter your email.");
       return;
     }
+    setError("");
     setShowProgress(true);
     setProgressStep(0);
-    setError("");
-    // Animate progress steps
+    // Simulate progress
     for (let i = 0; i < progressSteps.length; i++) {
       setProgressStep(i);
       // eslint-disable-next-line no-await-in-loop
@@ -93,6 +93,19 @@ export default function UploadResumePage() {
         sessionStorage.setItem("resumeText", data.text);
         sessionStorage.setItem("resumeEmail", email);
         sessionStorage.setItem("interviewLanguage", language);
+        
+        // Store the original file content for later upload to Supabase
+        const fileReader = new FileReader();
+        fileReader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          // Strip the data URL prefix (e.g., "data:application/pdf;base64,")
+          const base64Content = dataUrl.split(',')[1];
+          sessionStorage.setItem("resumeFileContent", base64Content);
+          sessionStorage.setItem("resumeFileName", file.name);
+          sessionStorage.setItem("resumeFileType", file.type); // Store content type
+        };
+        fileReader.readAsDataURL(file); // Read as data URL for proper base64 conversion
+        
         if (data.name) {
           console.log("Extracted name from API:", data.name);
           sessionStorage.setItem("candidateName", data.name);

@@ -193,11 +193,13 @@ const Agent = ({
     if (callStatus === CallStatus.FINISHED) {
       setShowAnalysisSpinner(true);
       const doAnalysisAndShowFeedback = async () => {
-        await analyzePausesAndTone(messages);
+        const toneResult = await analyzePausesAndTone(messages);
         if (type === "generate") {
+          // Save data after tone analysis is complete with the tone result
+          await saveToSupabase(messages, { raw: "Generated interview completed." }, toneResult);
           router.push("/");
         } else {
-          await generateFeedback(messages);
+          await generateFeedback(messages, toneResult);
           setShowAnalysisSpinner(false);
           setShowFeedbackCard(true);
         }
@@ -229,6 +231,7 @@ const Agent = ({
     const toneResult = await analyzeTone(allText);
     setTone(toneResult);
     setAnalyzing(false);
+    return toneResult; // Return the tone result directly
   }
 
   // Pause analysis function
@@ -279,7 +282,7 @@ const Agent = ({
     }
   }
 
-  async function generateFeedback(messages: SavedMessage[]) {
+  async function generateFeedback(messages: SavedMessage[], toneResult: any) {
     setLoadingFeedback(true);
     const MAX_CHARS = 8000;
     const transcriptText = messages.map((msg) => `${msg.role}: ${msg.content}`).join("\n").slice(0, MAX_CHARS);
@@ -291,12 +294,24 @@ const Agent = ({
     if (res.ok) {
       const data = await res.json();
       try {
-        setFeedback(typeof data.feedback === 'string' ? JSON.parse(data.feedback) : data.feedback);
+        const feedbackData = typeof data.feedback === 'string' ? JSON.parse(data.feedback) : data.feedback;
+        setFeedback(feedbackData);
+        
+        // Save with the tone result directly
+        await saveToSupabase(messages, feedbackData, toneResult);
       } catch {
-        setFeedback({ raw: data.feedback });
+        const feedbackData = { raw: data.feedback };
+        setFeedback(feedbackData);
+        
+        // Save with the tone result directly
+        await saveToSupabase(messages, feedbackData, toneResult);
       }
     } else {
-      setFeedback({ raw: "Could not generate feedback." });
+      const feedbackData = { raw: "Could not generate feedback." };
+      setFeedback(feedbackData);
+      
+      // Save with the tone result directly
+      await saveToSupabase(messages, feedbackData, toneResult);
     }
     setLoadingFeedback(false);
   }
@@ -377,6 +392,85 @@ const Agent = ({
     vapi.stop();
   };
 
+  // Function to save interview data to Supabase
+  const saveToSupabase = async (messages: SavedMessage[], feedback: any, toneResult: any) => {
+    try {
+      // Create transcript text
+      const transcriptText = messages.map((msg) => `${msg.role}: ${msg.content}`).join("\n");
+      
+      // Get email and resume file content from sessionStorage
+      const email = sessionStorage.getItem("resumeEmail") || "";
+      const resumeFileContent = sessionStorage.getItem("resumeFileContent") || "";
+      const resumeFileName = sessionStorage.getItem("resumeFileName") || "resume.pdf";
+      const resumeFileType = sessionStorage.getItem("resumeFileType") || "application/pdf";
+      const resumeText = sessionStorage.getItem("resumeText") || ""; // Get resume text for skills extraction
+      
+      // Prepare tone data for storage - store the complete tone object
+      let toneDataForStorage = null;
+      if (toneResult) {
+        if (typeof toneResult === 'object' && !Array.isArray(toneResult)) {
+          // Store the complete tone object with all fields
+          toneDataForStorage = {
+            confidence: toneResult.confidence || null,
+            tone: toneResult.tone || null,
+            energy: toneResult.energy || null,
+            summary: toneResult.summary || null
+          };
+        } else if (typeof toneResult === 'string') {
+          // If tone is a string, store it as is
+          toneDataForStorage = toneResult;
+        } else {
+          // Fallback: convert to string
+          toneDataForStorage = String(toneResult);
+        }
+      }
+      
+      // Prepare data for Supabase
+      const interviewData = {
+        transcript: transcriptText,
+        feedback: feedback,
+        candidateName: userName,
+        duration: interviewDuration || 'N/A',
+        tone: toneDataForStorage, // Store the complete tone object
+        language: language || 'en',
+        userId: userId || 'anonymous',
+        interviewId: interviewId || `interview_${Date.now()}`,
+        email: email,
+        resumeFile: resumeFileContent, // Store the original file content for upload
+        resumeFileName: resumeFileName, // Pass original filename
+        resumeFileType: resumeFileType, // Pass content type
+        resumeText: resumeText // Pass resume text for skills extraction
+      };
+      
+      console.log("📊 Saving interview data:", {
+        candidateName: userName,
+        duration: interviewDuration,
+        tone: toneDataForStorage,
+        email: email,
+        hasResume: !!resumeFileContent,
+        fileName: resumeFileName
+      });
+      
+      // Send to API to save to Supabase
+      const response = await fetch('/api/save-interview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(interviewData),
+      });
+      
+      if (response.ok) {
+        console.log("✅ Interview data saved to Supabase successfully");
+      } else {
+        const errorData = await response.json();
+        console.error("❌ Failed to save to Supabase:", errorData);
+      }
+    } catch (error) {
+      console.error("Error saving to Supabase:", error);
+    }
+  };
+
   return (
     <>
       <div className="call-view" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"' }}>
@@ -444,287 +538,32 @@ const Agent = ({
         </div>
       )}
 
-      {/* Feedback Card Modal */}
+      {/* Thank You Card Modal */}
       {showFeedbackCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-zinc-900 rounded-2xl p-6 flex flex-col gap-4 min-w-[440px] w-full relative shadow-xl animate-fade-in" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"', maxWidth: '880px' }}>
-            <div className="text-center mb-0.5">
-              <span className="text-2xl font-bold mb-0.5 block" style={{ color: '#a78bfa' }}>Interview Feedback</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4">
+          <div className="bg-zinc-900 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 flex flex-col gap-3 sm:gap-4 w-full max-w-[90vw] sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl relative shadow-xl animate-fade-in mx-2 sm:mx-4" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"' }}>
+            <div className="text-center mb-3 sm:mb-4">
+              <div className="text-2xl sm:text-3xl md:text-4xl mb-2 sm:mb-3 md:mb-4">🎉</div>
+              <span className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 block" style={{ color: '#a78bfa' }}>{t("interview.thankYouTitle")}</span>
             </div>
-            <div className="text-center mb-0.5">
-              <span className="text-base text-light-200 mb-2 block">
-                Interview conducted on: {dayjs(feedback?.createdAt || Date.now()).format('MMMM D, YYYY h:mm A')}
+            <div className="text-center mb-3 sm:mb-4">
+              <span className="text-xs sm:text-sm md:text-base text-light-200 mb-1 sm:mb-2 block">
+                {t("interview.thankYouSubtitle")}: {dayjs(feedback?.createdAt || Date.now()).format('MMMM D, YYYY h:mm A')}
               </span>
               {interviewDuration && (
-                <span className="text-base text-light-200 mb-2 block">
+                <span className="text-xs sm:text-sm md:text-base text-light-200 mb-2 sm:mb-3 md:mb-4 block">
                   Duration: {interviewDuration}
                 </span>
               )}
-            </div>
-            <div className="flex flex-col md:flex-row gap-6 w-full">
-              {/* Tone Analysis (left column) */}
-              <div className="md:w-1/3 w-full">
-                {tone && (() => {
-                  // Tone rendering logic (reuse existing)
-                  if (typeof tone === 'string') {
-                    let str = tone.trim();
-                    if (str.startsWith('```')) {
-                      str = str.replace(/^```json|^```/i, '').replace(/```$/, '').trim();
-                    }
-                    if (str.toLowerCase().startsWith('json')) {
-                      str = str.replace(/^json/i, '').trim();
-                    }
-                    if (str.startsWith('{') && str.endsWith('}')) {
-                      try {
-                        const parsed = JSON.parse(str);
-                        return (
-                          <div className="w-full bg-zinc-800 rounded-xl p-6 mb-6 mt-2 flex flex-col gap-3 border border-zinc-700 shadow-sm">
-                            <div className="flex flex-col gap-2 mb-1 w-full">
-                              {parsed.confidence && <div className="text-blue-200 text-sm font-semibold">Confidence: <span className="text-white">{parsed.confidence}</span></div>}
-                              {parsed.tone && <div className="text-purple-200 text-sm font-semibold">Tone: <span className="text-white">{parsed.tone}</span></div>}
-                              {parsed.energy && <div className="text-yellow-200 text-sm font-semibold">Energy: <span className="text-white">{parsed.energy}</span></div>}
-                            </div>
-                            {parsed.summary && <div className="text-light-100 text-base italic mt-1">{parsed.summary}</div>}
-                          </div>
-                        );
-                      } catch {}
-                    }
-                    // Fallback: show as string
-                    return (
-                      <div className="w-full bg-zinc-800 rounded-xl p-5 mb-4 border border-zinc-700 shadow-sm">
-                        <span className="text-light-100 text-base italic">{tone}</span>
-                      </div>
-                    );
-                  }
-                  if (typeof tone === 'object' && !Array.isArray(tone) && (tone.confidence || tone.tone || tone.energy || tone.summary)) {
-                    return (
-                      <div className="w-full bg-zinc-800 rounded-xl p-6 mb-6 mt-2 flex flex-col gap-3 border border-zinc-700 shadow-sm">
-                        <div className="flex flex-col gap-2 mb-1 w-full">
-                          {tone.confidence && <div className="text-blue-200 text-sm font-semibold">Confidence: <span className="text-white">{tone.confidence}</span></div>}
-                          {tone.tone && <div className="text-purple-200 text-sm font-semibold">Tone: <span className="text-white">{tone.tone}</span></div>}
-                          {tone.energy && <div className="text-yellow-200 text-sm font-semibold">Energy: <span className="text-white">{tone.energy}</span></div>}
-                        </div>
-                        {tone.summary && <div className="text-light-100 text-base italic mt-1">{tone.summary}</div>}
-                      </div>
-                    );
-                  }
-                  // Fallback: show as string
-                  return (
-                    <div className="w-full bg-zinc-800 rounded-xl p-5 mb-4 border border-zinc-700 shadow-sm">
-                      <span className="text-light-100 text-base italic">{String(tone)}</span>
-                    </div>
-                  );
-                })()}
-              </div>
-              {/* Feedback (right column) */}
-              <div className="md:w-2/3 w-full">
-                {/* Existing feedback rendering logic (reuse existing) */}
-                <div className="w-full flex-1 px-1 max-h-[60vh] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500" style={{lineHeight: '1.7', wordBreak: 'break-word'}}>
-                  {/* New feedback structure rendering */}
-                  {feedback && !feedback.raw && typeof feedback === 'object' && feedback.final_assessment ? (
-                    (() => {
-                      const sectionOrder = [
-                        { key: 'communication', label: 'Communication' },
-                        { key: 'analytical_thinking_problem_solving', label: 'Analytical Thinking & Problem Solving' },
-                        { key: 'technical_depth_accuracy', label: 'Technical Depth & Accuracy' },
-                        { key: 'adaptability_learning_mindset', label: 'Adaptability & Learning Mindset' },
-                        { key: 'motivation', label: 'Motivation' },
-                        { key: 'confidence', label: 'Confidence' },
-                        { key: 'collaboration_teamwork', label: 'Collaboration & Teamwork' },
-                        { key: 'accountability_ownership', label: 'Accountability & Ownership' },
-                        { key: 'cultural_fit_values_alignment', label: 'Cultural Fit & Values Alignment' },
-                        { key: 'leadership_influence', label: 'Leadership & Influence' },
-                        { key: 'decision_making_quality', label: 'Decision Making Quality' },
-                        { key: 'time_management_prioritization', label: 'Time Management & Prioritization' },
-                        { key: 'emotional_intelligence', label: 'Emotional Intelligence' },
-                      ];
-                      return (
-                        <>
-                          {sectionOrder.map(({ key, label }) =>
-                            feedback[key] ? (
-                              <section key={key} className="mb-6">
-                                <span className="block font-bold text-primary-200 mb-1 text-lg">{label}</span>
-                                <span className="text-light-100 whitespace-pre-line">{feedback[key]}</span>
-                                <hr className="my-6 border-zinc-700" />
-                              </section>
-                            ) : null
-                          )}
-                          <section className="mb-6">
-                            <span className="block font-bold text-primary-200 mb-1 text-lg">Final Assessment</span>
-                            <span className="text-light-100 whitespace-pre-line">{feedback.final_assessment}</span>
-                          </section>
-                        </>
-                      );
-                    })()
-                  ) : feedback && !feedback.raw && (
-                    <>
-                      {/* Communication Skills */}
-                      {feedback.communication_summary && (
-                        <div className="mb-4">
-                          <h4
-                            className="text-lg font-semibold mb-1 border-b pb-1"
-                            style={{ color: '#a78bfa', borderColor: '#a78bfa' }}
-                          >
-                            Communication Skills
-                          </h4>
-                          <div
-                            className="whitespace-pre-line"
-                            style={{ color: '#ddd6fe' }}
-                          >
-                            {feedback.communication_summary}
-                          </div>
-                        </div>
-                      )}
-                      {/* Technical Knowledge */}
-                      {feedback.technical_summary && (
-                        <div className="mb-4">
-                          <h4
-                            className="text-lg font-semibold mb-1 border-b pb-1"
-                            style={{ color: '#a78bfa', borderColor: '#a78bfa' }}
-                          >
-                            Technical Knowledge
-                          </h4>
-                          <div
-                            className="whitespace-pre-line"
-                            style={{ color: '#ddd6fe' }}
-                          >
-                            {feedback.technical_summary}
-                          </div>
-                        </div>
-                      )}
-                      {/* Problem-Solving */}
-                      {feedback.problem_solving_summary && (
-                        <div className="mb-4">
-                          <h4
-                            className="text-lg font-semibold mb-1 border-b pb-1"
-                            style={{ color: '#a78bfa', borderColor: '#a78bfa' }}
-                          >
-                            Problem-Solving
-                          </h4>
-                          <div
-                            className="whitespace-pre-line"
-                            style={{ color: '#ddd6fe' }}
-                          >
-                            {feedback.problem_solving_summary}
-                          </div>
-                        </div>
-                      )}
-                      {/* Cultural Fit */}
-                      {feedback.culture_fit_summary && (
-                        <div className="mb-4">
-                          <h4
-                            className="text-lg font-semibold mb-1 border-b pb-1"
-                            style={{ color: '#a78bfa', borderColor: '#a78bfa' }}
-                          >
-                            Cultural & Role Fit
-                          </h4>
-                          <div
-                            className="whitespace-pre-line"
-                            style={{ color: '#ddd6fe' }}
-                          >
-                            {feedback.culture_fit_summary}
-                          </div>
-                        </div>
-                      )}
-                      {/* Confidence & Clarity */}
-                      {feedback.confidence_summary && (
-                        <div className="mb-4">
-                          <h4
-                            className="text-lg font-semibold mb-1 border-b pb-1"
-                            style={{ color: '#a78bfa', borderColor: '#a78bfa' }}
-                          >
-                            Confidence & Clarity
-                          </h4>
-                          <div
-                            className="whitespace-pre-line"
-                            style={{ color: '#ddd6fe' }}
-                          >
-                            {feedback.confidence_summary}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Final Assessment */}
-                      {feedback.finalAssessment && (
-                        <div className="mb-4">
-                          <h4
-                            className="text-lg font-semibold mb-1 border-b pb-1"
-                            style={{ color: '#a78bfa', borderColor: '#a78bfa' }}
-                          >
-                            Final Assessment
-                          </h4>
-                          <div
-                            className="whitespace-pre-line"
-                            style={{ color: '#ddd6fe' }}
-                          >
-                            {feedback.finalAssessment}
-                          </div>
-                        </div>
-                      )}
-                      {/* Category Breakdown */}
-                      {feedback.categoryScores && feedback.categoryScores.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="text-lg font-semibold text-primary-200 mb-2 border-b border-primary-900 pb-1">Breakdown by Category</h4>
-                    <ul className="space-y-2">
-                            {feedback.categoryScores.map((cat: any, idx: number) => (
-                              <li key={idx} className="flex flex-col sm:flex-row sm:items-center sm:gap-2 mb-2">
-                          <span className="font-bold text-light-100">{cat.name}:</span>
-                          <span className="text-green-400 font-semibold">{cat.score}/100</span>
-                          <span className="text-light-100">{cat.comment}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {/* Strengths */}
-                      {feedback.strengths && feedback.strengths.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="text-lg font-semibold text-green-400 mb-1 border-b border-green-900 pb-1">Strengths</h4>
-                    <ul className="list-disc ml-6 text-light-100">
-                            {feedback.strengths.map((s: string, i: number) => <li key={i} className="mb-2">{s}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {/* Areas for Improvement */}
-                      {feedback.areasForImprovement && feedback.areasForImprovement.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="text-lg font-semibold text-red-400 mb-1 border-b border-red-900 pb-1">Areas for Improvement</h4>
-                    <ul className="list-disc ml-6 text-light-100">
-                            {feedback.areasForImprovement.map((a: string, i: number) => <li key={i} className="mb-2">{a}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {/* Communication Analysis as bullet points */}
-                {pauseAnalysis && pauseAnalysis.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="text-lg font-semibold text-primary-200 mb-1 border-b border-primary-900 pb-1">Communication Analysis</h4>
-                    <ul className="list-disc ml-6 text-light-100">
-                      {pauseAnalysis.map((ans, idx) => (
-                              <li key={idx} className="mb-2">
-                          Answer {ans.answer}: {ans.pauses.length} pause(s)
-                          {ans.pauses.length > 0 && (
-                            <ul className="list-disc ml-6">
-                                    {ans.pauses.map((p: any, i: number) => (
-                                      <li key={i} className="mb-1">
-                                  Pause of {p.gap.toFixed(2)}s between "{p.from}" and "{p.to}"
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </li>
-                      ))}
-                          </ul>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+              <div className="text-sm sm:text-base md:text-lg text-light-100 leading-relaxed px-1 sm:px-2">
+                {t("interview.thankYouMessage")}
               </div>
             </div>
-            {/* Action Buttons - sticky/fixed at bottom */}
-            <div className="flex gap-4 w-full justify-center mt-2 sticky bottom-0 bg-zinc-900 pt-4 pb-2 z-10 rounded-b-2xl">
+            
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4 w-full justify-center mt-3 sm:mt-4">
               <button
-                className="max-w-xs mx-auto text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800"
+                className="w-full sm:w-auto text-white font-medium rounded-lg text-xs sm:text-sm px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 text-center bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 transition-all duration-200"
                 onClick={() => {
                   setLoadingReturnDashboard(true);
                   router.push("/");
@@ -732,14 +571,19 @@ const Agent = ({
                 disabled={loadingReturnDashboard}
               >
                 {loadingReturnDashboard ? (
-                  <svg aria-hidden="true" className="inline w-5 h-5 text-gray-200 animate-spin dark:text-gray-600 fill-purple-600 mr-2" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <svg aria-hidden="true" className="inline w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-gray-200 animate-spin dark:text-gray-600 fill-purple-600 mr-1 sm:mr-2" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
                     <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
                   </svg>
                 ) : t("interview.returnToDashboard")}
               </button>
               {interviewId && (
-                <button className="btn btn-secondary px-6 py-2 rounded-full text-base font-semibold" onClick={() => router.push(`/interview/${interviewId}`)}>{t("interview.retakeInterview")}</button>
+                <button 
+                  className="w-full sm:w-auto text-white font-medium rounded-lg text-xs sm:text-sm px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 text-center bg-zinc-700 hover:bg-zinc-600 focus:ring-4 focus:outline-none focus:ring-zinc-300 dark:focus:ring-zinc-800 transition-all duration-200" 
+                  onClick={() => router.push(`/interview/${interviewId}`)}
+                >
+                  {t("interview.retakeInterview")}
+                </button>
               )}
             </div>
           </div>

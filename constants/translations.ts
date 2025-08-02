@@ -16,6 +16,9 @@ export interface Translations {
     callButton: string;
     endButton: string;
     retakeInterview: string;
+    thankYouTitle: string;
+    thankYouMessage: string;
+    thankYouSubtitle: string;
   };
   upload: {
     title: string;
@@ -48,7 +51,10 @@ export const translations: Record<string, Translations> = {
       returnToDashboard: "Return to Dashboard",
       callButton: "Call",
       endButton: "End",
-      retakeInterview: "Retake Interview"
+      retakeInterview: "Retake Interview",
+      thankYouTitle: "Thank You!",
+      thankYouMessage: "Your interview has been completed successfully. We've saved your responses and will provide you with detailed feedback shortly.",
+      thankYouSubtitle: "Interview completed on"
     },
     upload: {
       title: "Upload Resume",
@@ -83,7 +89,10 @@ export const translations: Record<string, Translations> = {
       returnToDashboard: "العودة إلى لوحة التحكم",
       callButton: "اتصال",
       endButton: "إنهاء",
-      retakeInterview: "إعادة المقابلة"
+      retakeInterview: "إعادة المقابلة",
+      thankYouTitle: "شكراً لك!",
+      thankYouMessage: "تم إكمال مقابلتك بنجاح. لقد حفظنا ردودك وسنقدم لك تقييماً مفصلاً قريباً.",
+      thankYouSubtitle: "تم إكمال المقابلة في"
     },
     upload: {
       title: "رفع السيرة الذاتية",
