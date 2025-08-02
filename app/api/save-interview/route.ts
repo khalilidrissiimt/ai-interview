@@ -229,10 +229,11 @@ export async function POST(req: NextRequest) {
             sampleValues: skillsEmbedding.slice(0, 3)
           });
         } else {
-          console.error("❌ Failed to generate skills embedding");
+          console.error("❌ Failed to generate skills embedding - continuing without embedding");
         }
       } catch (embeddingError) {
         console.error("❌ Error generating skills embedding:", embeddingError);
+        console.log("⚠️ Continuing without skills embedding");
       }
     } else {
       console.log("⚠️ No skills available for embedding generation");
@@ -253,10 +254,11 @@ export async function POST(req: NextRequest) {
             sampleValues: feedbackEmbedding.slice(0, 3)
           });
         } else {
-          console.error("❌ Failed to generate resume text embedding");
+          console.error("❌ Failed to generate resume text embedding - continuing without embedding");
         }
       } catch (embeddingError) {
         console.error("❌ Error generating resume text embedding:", embeddingError);
+        console.log("⚠️ Continuing without feedback embedding");
       }
     } else {
       console.log("⚠️ No resume text available for embedding generation");
@@ -335,8 +337,15 @@ export async function POST(req: NextRequest) {
       console.log("✅ Interview data saved to Supabase successfully");
       return NextResponse.json({ success: true });
     } else {
-      const errorData = await response.text();
-      console.error("❌ Supabase error:", errorData);
+      let errorData = "Unknown error";
+      try {
+        errorData = await response.text();
+        console.error("❌ Supabase error response:", errorData);
+      } catch (parseError) {
+        console.error("❌ Could not parse error response:", parseError);
+        errorData = `Status: ${response.status}, StatusText: ${response.statusText}`;
+      }
+      
       return NextResponse.json({ 
         success: false, 
         error: `Supabase error: ${response.status} - ${errorData}` 
