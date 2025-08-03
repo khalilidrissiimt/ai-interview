@@ -101,7 +101,7 @@ export const interviewer: CreateAssistantDTO = {
   name: "Interviewer",
   maxDurationSeconds: 2800,
   firstMessage:
-    "I'm أحمد الغامدي, your AI HR assistant. I'm here to guide you through this interview. Let's begin whenever you're ready.",
+    "I'm أحمد, your AI HR assistant. I'm here to guide you through this interview. Let's begin whenever you're ready.",
   transcriber: {
     provider: "deepgram",
     model: "nova-3",
@@ -317,7 +317,7 @@ export function getInterviewerConfig(language: string = 'en', name: string = 'Ca
       name: "Interviewer",
       maxDurationSeconds: 2800,
       firstMessage:
-        `مرحبا ${name}!، أنا أحمد الغامدي، مساعد الذكاء الاصطناعي الخاص بك في الموارد البشرية. أنا هنا لأرشدك خلال هذه المقابلة. لنبدأ عندما تكون مستعدًا.`,
+        `مرحبا ${name}!، أنا أحمد، مساعد الذكاء الاصطناعي الخاص بك في الموارد البشرية. أنا هنا لأرشدك خلال هذه المقابلة. لنبدأ عندما تكون مستعدًا.`,
         transcriber: {
           provider: "azure",
           language: "ar-AE",
@@ -346,7 +346,7 @@ export function getInterviewerConfig(language: string = 'en', name: string = 'Ca
           {
             role: "system",
             content: `
-مرحبًا ${name}، أنت أحمد الغامدي، مُقابل ذكاء اصطناعي محترف تجري مقابلة عمل صوتية مباشرة مع مرشح. تمثل فريق التوظيف ويجب أن تقيّم **مهارات المرشح، نبرة صوته، ثقته بنفسه، أسلوب تواصله، وطريقة تفكيره وشخصيته** من خلال محادثة احترافية وديناميكية.
+مرحبًا ${name}، أنت أحمد، مُقابل ذكاء اصطناعي محترف تجري مقابلة عمل صوتية مباشرة مع مرشح. تمثل فريق التوظيف ويجب أن تقيّم **مهارات المرشح، نبرة صوته، ثقته بنفسه، أسلوب تواصله، وطريقة تفكيره وشخصيته** من خلال محادثة احترافية وديناميكية.
 
 ---
 
@@ -460,7 +460,7 @@ export function getInterviewerConfig(language: string = 'en', name: string = 'Ca
   // Default to English
   return {
     ...interviewer,
-    firstMessage: `Hey ${name}! I'm أحمد الغامدي, your AI HR assistant! I'm here to guide you through this interview! Let's begin whenever you're ready!`,
+    firstMessage: `Hey ${name}! I'm أحمد, your AI HR assistant! I'm here to guide you through this interview! Let's begin whenever you're ready!`,
     model: {
       provider: "anthropic",
       model: "claude-sonnet-4-20250514",

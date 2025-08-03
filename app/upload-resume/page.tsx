@@ -7,8 +7,8 @@ import Cookies from "js-cookie";
 import { useLanguage } from "@/lib/hooks/useLanguage";
 
 const LANGUAGES = [
-  { code: "en", label: "English" },
-  { code: "ar", label: "Arabic" },
+  { code: "en", labelEn: "English", labelAr: "الإنجليزية" },
+  { code: "ar", labelEn: "Arabic", labelAr: "العربية" },
 ];
 
 export default function UploadResumePage() {
@@ -23,7 +23,8 @@ export default function UploadResumePage() {
   const [showProgress, setShowProgress] = useState(false);
   const [progressStep, setProgressStep] = useState(0);
   const [showStartCard, setShowStartCard] = useState(false);
-  const { t } = useLanguage();
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const { t, currentLang } = useLanguage();
   
   const progressSteps = t("upload.progressSteps");
   const [loadingStartInterview, setLoadingStartInterview] = useState(false);
@@ -63,6 +64,10 @@ export default function UploadResumePage() {
       setError("Please enter your email.");
       return;
     }
+    if (!acceptedTerms) {
+      setError(t("upload.termsErrorText"));
+      return;
+    }
     setError("");
     setShowProgress(true);
     setProgressStep(0);
@@ -77,6 +82,7 @@ export default function UploadResumePage() {
     formData.append("file", file);
     formData.append("email", email);
     let resumeText = "";
+    let candidateName = "";
     try {
       const res = await fetch("/api/extract-resume", {
         method: "POST",
@@ -87,6 +93,7 @@ export default function UploadResumePage() {
       console.log("API extract-resume response:", data);
       if (data.text) {
         resumeText = data.text;
+        candidateName = data.name || "Unknown";
         // Clear old session data before saving new
         sessionStorage.removeItem("interviewQuestions");
         sessionStorage.removeItem("interviewLanguage");
@@ -120,6 +127,40 @@ export default function UploadResumePage() {
       setShowProgress(false);
       return;
     }
+
+    // Save initial data to database immediately
+    try {
+      const fileReader = new FileReader();
+      fileReader.onload = async (e) => {
+        const dataUrl = e.target?.result as string;
+        const base64Content = dataUrl.split(',')[1];
+        
+        // Save initial data to database
+        const saveResponse = await fetch("/api/save-files", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            resumeFile: base64Content,
+            resumeFileName: file.name,
+            resumeFileType: file.type,
+            resumeText,
+            candidateName,
+            language
+          }),
+        });
+        
+        if (!saveResponse.ok) {
+          console.error("Failed to save initial data to database");
+        } else {
+          console.log("✅ Initial data saved to database successfully");
+        }
+      };
+      fileReader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error("Error saving initial data:", err);
+    }
+
     // Generate questions in the background
     try {
       console.log("Sending language to API:", language);
@@ -207,14 +248,60 @@ export default function UploadResumePage() {
             className="block w-full p-2.5 text-sm rounded-lg border border-zinc-700 bg-zinc-800 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             {LANGUAGES.map(lang => (
-              <option key={lang.code} value={lang.code}>{lang.label}</option>
+              <option key={lang.code} value={lang.code}>
+                {currentLang === 'ar' ? lang.labelAr : lang.labelEn}
+              </option>
             ))}
           </select>
+          
+          {/* Terms and Conditions Checkbox */}
+          <div className="w-full">
+            <div className="flex items-start space-x-3">
+              <input
+                type="checkbox"
+                id="terms-checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 text-purple-600 bg-zinc-800 border-zinc-600 rounded focus:ring-purple-500 focus:ring-2"
+                disabled={loading}
+              />
+              <label htmlFor="terms-checkbox" className="text-sm text-zinc-300 leading-relaxed">
+                {currentLang === 'ar' ? (
+                  <>
+                    أوافق على{' '}
+                    <a 
+                      href="/terms-ar" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-purple-400 hover:text-purple-300 underline"
+                    >
+                      الشروط والأحكام
+                    </a>
+                    {' '}وأوافق على معالجة بياناتي لأغراض المقابلة.
+                  </>
+                ) : (
+                  <>
+                    I accept the{' '}
+                    <a 
+                      href="/terms-en" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-purple-400 hover:text-purple-300 underline"
+                    >
+                      Terms and Conditions
+                    </a>
+                    {' '}and agree to the processing of my data for interview purposes.
+                  </>
+                )}
+              </label>
+            </div>
+          </div>
+          
           {error && <p className="text-red-500 text-center">{error}</p>}
           <button
             type="submit"
-            className="w-full text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800"
-            disabled={loading}
+            className="w-full text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !acceptedTerms}
           >
             {loading ? t("upload.extractingText") : t("upload.uploadButton")}
           </button>
@@ -237,6 +324,7 @@ export default function UploadResumePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="bg-zinc-900 rounded-2xl p-8 flex flex-col items-center gap-6 min-w-[320px] relative shadow-xl">
             <span className="text-xl font-bold text-white mb-2" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"' }}>{t("upload.readyToStartText")}</span>
+            
             <button
               className="w-full text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800"
               onClick={handleStartInterview}

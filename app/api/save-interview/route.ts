@@ -240,6 +240,7 @@ export async function POST(req: NextRequest) {
       tone: tone,
       "Email": email, // Correct column name
       "CV/Resume": resumeFilePath ? `${appUrl}/api/dashboard-resume-url?file=${encodeURIComponent(resumeFilePath)}` : null, // API URL that generates fresh signed URLs
+      conducted_interview: 'conducted' // Update flag to conducted when interview is completed
     };
     
     // Add skills as text
@@ -248,18 +249,50 @@ export async function POST(req: NextRequest) {
       console.log("✅ Skills text added to Supabase data");
     }
     
+    // Check if there's an existing record with the same email and conducted_interview = 'not_conducted'
+    let existingRecordId = null;
+    if (email) {
+      try {
+        const checkResponse = await fetch(`${supabaseUrl}/rest/v1/interviews?Email=eq.${encodeURIComponent(email)}&conducted_interview=eq.not_conducted&select=id&limit=1`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${supabaseKey}`,
+            'apikey': supabaseKey,
+          }
+        });
+        
+        if (checkResponse.ok) {
+          const existingRecords = await checkResponse.json();
+          if (existingRecords && existingRecords.length > 0) {
+            existingRecordId = existingRecords[0].id;
+            console.log("✅ Found existing record to update:", existingRecordId);
+          }
+        }
+      } catch (error) {
+        console.error("❌ Error checking for existing record:", error);
+      }
+    }
+    
     console.log("📊 Final Supabase data structure:", {
       hasSkillsText: !!supabaseData.skills,
       skillsTextType: typeof supabaseData.skills,
       resumeUrl: supabaseData["CV/Resume"] || "None",
-      note: "Resume stored as clickable URL for dashboard access - generates signed URL on-demand"
+      conductedInterview: supabaseData.conducted_interview,
+      existingRecordId,
+      note: existingRecordId ? "Updating existing record" : "Creating new record"
     });
     
     // Log the exact data being sent
     console.log("📤 Sending to Supabase:", JSON.stringify(supabaseData, null, 2));
     
-    const response = await fetch(`${supabaseUrl}/rest/v1/interviews`, {
-      method: 'POST',
+    // Use PATCH if updating existing record, POST if creating new one
+    const method = existingRecordId ? 'PATCH' : 'POST';
+    const url = existingRecordId 
+      ? `${supabaseUrl}/rest/v1/interviews?id=eq.${existingRecordId}`
+      : `${supabaseUrl}/rest/v1/interviews`;
+    
+    const response = await fetch(url, {
+      method,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${supabaseKey}`,

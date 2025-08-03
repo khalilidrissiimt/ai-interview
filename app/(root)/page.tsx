@@ -21,7 +21,7 @@ export default function Home() {
   return (
     <div className="flex flex-col items-center justify-center w-full">
       <div className="relative z-10 flex flex-col items-center w-full px-4 sm:px-0">
-        {/* Remove the logo and PrepWithAhamed text above the robot image */}
+        {/* Remove the logo and TrueChance text above the robot image */}
         <Image 
           src="/robot.png" 
           alt="AI Interview Robot" 

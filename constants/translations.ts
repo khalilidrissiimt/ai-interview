@@ -30,6 +30,9 @@ export interface Translations {
     startInterviewText: string;
     readyToStartText: string;
     progressSteps: string[];
+    termsAcceptText: string;
+    termsLinkText: string;
+    termsErrorText: string;
   };
 }
 
@@ -69,7 +72,10 @@ export const translations: Record<string, Translations> = {
         "Analyzing your CV…",
         "Analyzing your skills…",
         "Generating questions…"
-      ]
+      ],
+      termsAcceptText: "I accept the Terms and Conditions and agree to the processing of my data for interview purposes.",
+      termsLinkText: "Terms and Conditions",
+      termsErrorText: "Please accept the terms and conditions to continue."
     }
   },
   ar: {
@@ -107,7 +113,10 @@ export const translations: Record<string, Translations> = {
         "جاري تحليل سيرتك الذاتية…",
         "جاري تحليل مهاراتك…",
         "جاري إنشاء الأسئلة…"
-      ]
+      ],
+      termsAcceptText: "أوافق على الشروط والأحكام وأوافق على معالجة بياناتي لأغراض المقابلة.",
+      termsLinkText: "الشروط والأحكام",
+      termsErrorText: "يرجى الموافقة على الشروط والأحكام للمتابعة."
     }
   }
 };

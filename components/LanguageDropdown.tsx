@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 
 interface LanguageOption {
   code: string;
-  name: string;
+  nameEn: string;
+  nameAr: string;
   flag: string;
   font: string;
 }
@@ -12,13 +13,15 @@ interface LanguageOption {
 const languages: LanguageOption[] = [
   {
     code: "en",
-    name: "English",
+    nameEn: "English",
+    nameAr: "الإنجليزية",
     flag: "https://flagcdn.com/w320/us.png",
     font: "'Inter', sans-serif"
   },
   {
     code: "ar",
-    name: "العربية",
+    nameEn: "Arabic",
+    nameAr: "العربية",
     flag: "https://flagcdn.com/w320/sa.png",
     font: "'Cairo', sans-serif"
   }
@@ -117,10 +120,10 @@ export default function LanguageDropdown() {
               >
                 <img 
                   src={lang.flag} 
-                  alt={lang.name} 
+                  alt={currentLang === "ar" ? lang.nameAr : lang.nameEn} 
                   className="h-4 w-6 me-2 rounded-md" 
                 />
-                {lang.name}
+                {currentLang === "ar" ? lang.nameAr : lang.nameEn}
               </button>
             ))}
           </div>

@@ -56,8 +56,8 @@ const Layout = ({ children }: { children: ReactNode }) => {
               className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold tracking-tight text-white truncate sm:truncate-none" 
               style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"' }}
             >
-              <span className="hidden sm:inline">PrepWithAhmed</span>
-              <span className="sm:hidden">PrepWithAhmed</span>
+              <span className="hidden sm:inline">TrueChance</span>
+              <span className="sm:hidden">TrueChance</span>
             </span>
           </Link>
         </div>

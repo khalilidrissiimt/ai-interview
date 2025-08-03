@@ -22,7 +22,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PrepWithAhmed",
+  title: "TrueChance",
   description: "An AI-powered platform for preparing for mock interviews",
 };
 
