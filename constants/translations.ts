@@ -19,6 +19,7 @@ export interface Translations {
     thankYouTitle: string;
     thankYouMessage: string;
     thankYouSubtitle: string;
+    analyzingInterview: string;
   };
   upload: {
     title: string;
@@ -57,7 +58,8 @@ export const translations: Record<string, Translations> = {
       retakeInterview: "Retake Interview",
       thankYouTitle: "Thank You!",
       thankYouMessage: "Your interview has been completed successfully. We've saved your responses and will provide you with detailed feedback shortly.",
-      thankYouSubtitle: "Interview completed on"
+      thankYouSubtitle: "Interview completed on",
+      analyzingInterview: "Analyzing the interview..."
     },
     upload: {
       title: "Upload Resume",
@@ -98,7 +100,8 @@ export const translations: Record<string, Translations> = {
       retakeInterview: "إعادة المقابلة",
       thankYouTitle: "شكراً لك!",
       thankYouMessage: "تم إكمال مقابلتك بنجاح. لقد حفظنا ردودك وسنقدم لك تقييماً مفصلاً قريباً.",
-      thankYouSubtitle: "تم إكمال المقابلة في"
+      thankYouSubtitle: "تم إكمال المقابلة في",
+      analyzingInterview: "جاري تحليل المقابلة..."
     },
     upload: {
       title: "رفع السيرة الذاتية",
