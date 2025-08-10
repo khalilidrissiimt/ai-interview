@@ -40,8 +40,8 @@ export interface Translations {
 export const translations: Record<string, Translations> = {
   en: {
     home: {
-      title: "AI-Powered Interview Practice",
-      subtitle: "Want Interview Questions That Actually Match Your Resume?",
+      title: "Begin a smarter journey to your next role.",
+      subtitle: "Let the AI interview highlight your skills beyond a résumé, unlocking ideal, bias-free opportunities for you.",
       uploadButton: "Upload Resume & Start",
       redirectingText: "Redirecting to resume upload..."
     },
@@ -82,8 +82,9 @@ export const translations: Record<string, Translations> = {
   },
   ar: {
     home: {
-      title: "تدريب المقابلات بالذكاء الاصطناعي",
-      subtitle: "هل تريد أسئلة مقابلة تتطابق فعلاً مع سيرتك الذاتية؟",
+      title: "ابدأ الرحلة الذكية نحو وظيفتك القادمة",
+      subtitle: "دع المقابلة الفورية مع الذكاء الصناعي تُظهر خبراتك ومهاراتك بدقة تتجاوز السيرة الذاتية، وتفتح لك باب الترشيح للفرص المثالية التي تناسبك تمامًا… بلا تحيز."
+,
       uploadButton: "رفع السيرة الذاتية والبدء",
       redirectingText: "إعادة التوجيه لرفع السيرة الذاتية..."
     },
